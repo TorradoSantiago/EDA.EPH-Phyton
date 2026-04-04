@@ -1,0 +1,5 @@
+.ipynb_checkpoints/
+outputs/figures/*.png
+outputs/tables/*.csv
+!outputs/figures/.gitkeep
+!outputs/tables/.gitkeep
