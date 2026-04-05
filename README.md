@@ -3,6 +3,7 @@
 Portfolio-grade socioeconomic analysis built on the 2019 Buenos Aires Annual Household Survey. The repository now combines descriptive diagnostics, formal econometric tests, Oaxaca-Blinder decomposition, and a disciplined ML benchmark, while preserving the original Spanish delivery so the stronger theoretical framing is never lost.
 
 Start with:
+- `household_survey_analysis.ipynb`
 - `BRIEF.md`
 - `docs/executive-summary.md`
 - `docs/household-survey-brief.pdf`
