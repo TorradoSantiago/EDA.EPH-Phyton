@@ -15,14 +15,7 @@
       --panel: #f8fbff;
     }
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: "Segoe UI", Arial, sans-serif;
-      font-size: 15px;
-      color: var(--ink);
-      background: white;
-      line-height: 1.5;
-    }
+    body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; font-size: 15px; color: var(--ink); background: white; line-height: 1.5; }
     main { max-width: 960px; margin: 0 auto; }
     h1, h2, h3 { margin: 0 0 12px; line-height: 1.15; break-after: avoid-page; }
     h1 { font-size: 33px; }
@@ -30,72 +23,20 @@
     p { margin: 0 0 14px; color: var(--muted); }
     ul { margin: 0 0 16px 20px; color: var(--muted); }
     li { margin-bottom: 8px; }
-    .hero {
-      padding: 28px 32px;
-      border: 1px solid var(--line);
-      border-radius: 24px;
-      background: linear-gradient(135deg, #f9fbff 0%, #eff5ff 100%);
-    }
-    .eyebrow {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.16em;
-      color: var(--accent);
-      font-weight: 700;
-      margin-bottom: 10px;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px;
-      margin-top: 22px;
-    }
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 18px;
-      break-inside: avoid-page;
-    }
+    .hero { padding: 28px 32px; border: 1px solid var(--line); border-radius: 24px; background: linear-gradient(135deg, #f9fbff 0%, #eff5ff 100%); }
+    .eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--accent); font-weight: 700; margin-bottom: 10px; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; break-inside: avoid-page; }
     .metric { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
     .label { font-size: 13px; color: var(--muted); }
     .section { margin-top: 26px; padding-top: 24px; border-top: 1px solid var(--line); }
     .page-start { break-before: page; page-break-before: always; }
-    .callout {
-      border-left: 4px solid var(--accent);
-      background: var(--accent-soft);
-      padding: 16px 18px;
-      border-radius: 14px;
-      margin: 18px 0;
-      color: var(--ink);
-    }
-    .figure {
-      margin: 22px 0;
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      overflow: hidden;
-      background: white;
-      break-inside: avoid-page;
-    }
+    .callout { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 16px 18px; border-radius: 14px; margin: 18px 0; color: var(--ink); }
+    .figure { margin: 22px 0; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: white; break-inside: avoid-page; }
     .figure img { width: 100%; display: block; object-fit: contain; max-height: 205mm; }
-    .figure figcaption {
-      padding: 12px 16px;
-      font-size: 13px;
-      color: var(--muted);
-      border-top: 1px solid var(--line);
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 14px;
-      font-size: 13px;
-    }
-    th, td {
-      border: 1px solid var(--line);
-      padding: 10px 12px;
-      text-align: left;
-      vertical-align: top;
-    }
+    .figure figcaption { padding: 12px 16px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); }
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
+    th, td { border: 1px solid var(--line); padding: 10px 12px; text-align: left; vertical-align: top; }
     th { background: var(--accent-soft); }
   </style>
 </head>
@@ -104,7 +45,7 @@
     <section class="hero">
       <div class="eyebrow">Urban Analytics and Labor Economics Case</div>
       <h1>Buenos Aires Household Survey</h1>
-      <p>This project turns the 2019 Annual Household Survey into a compact case for analytics, consulting, and policy roles. The story is simple: where income differences appear across the city, how much schooling seems to matter, and whether more complex ML models really add that much beyond an interpretable baseline.</p>
+      <p>This project turns the 2019 Annual Household Survey into a compact case for analytics, consulting, and policy roles. The updated version keeps the strongest part of the original delivery: a clear theoretical framing about why this survey matters for understanding inequality, labor conditions, and household wellbeing in Buenos Aires.</p>
       <div class="grid">
         <article class="card">
           <div class="metric">5,848</div>
@@ -115,92 +56,79 @@
           <div class="label">Estimated labor-income premium per additional year of schooling</div>
         </article>
         <article class="card">
-          <div class="metric">0.342</div>
-          <div class="label">Best out-of-sample ML R-squared on log labor income</div>
+          <div class="metric">29.35%</div>
+          <div class="label">Observed male-female labor-income gap in the working sample</div>
         </article>
       </div>
     </section>
 
     <section class="section">
-      <h2>What question does it answer?</h2>
-      <p>The case asks three practical questions. First, where are the strongest income differences inside Buenos Aires? Second, what happens to labor income once schooling, experience, and gender are read together? Third, if we add ML, do we learn something meaningfully different?</p>
+      <h2>Why this dataset matters</h2>
+      <p>The Annual Household Survey is valuable because it captures demographic, educational, labor, and health conditions across all communes of Buenos Aires. In the original notebook, that context was central: the dataset was presented as a policy tool, not just as material for plotting charts. That framing is preserved here because it makes the analysis more credible.</p>
       <div class="callout">
-        Executive takeaway: the strongest message is not that some communes are richer. It is that territorial inequality and the labor-income gap can be quantified clearly, while more complex prediction adds only modest extra fit.
+        Executive takeaway: the project is not just about showing inequality. It is about using a citywide survey to understand which social and labor-market variables are most strongly associated with income differences.
       </div>
       <ul>
-        <li>Commune 14 doubles Commune 8 in median household income: 70,000 versus 35,000.</li>
-        <li>Each additional year of schooling is associated with a 13.25% labor-income premium.</li>
-        <li>The observed male-female labor-income gap reaches 29.35% in the working sample.</li>
+        <li>Does geography influence household income?</li>
+        <li>How does household size affect total and per-capita income?</li>
+        <li>What is the relationship between schooling and labor income?</li>
+        <li>How much of the gender income gap can be explained by observed characteristics?</li>
       </ul>
     </section>
 
     <section class="section page-start">
-      <h2>Descriptive and econometric evidence</h2>
-      <p>The first visual shows the city-level income gradient. The second one shows why the gender result matters: once standard observed characteristics are controlled for, the unexplained component of the gap remains large.</p>
+      <h2>What the descriptive and econometric evidence says</h2>
+      <p>The current version keeps the original hypothesis-driven structure but improves the measurement. It moves from descriptive comparisons into a Mincer earnings equation and an Oaxaca-Blinder decomposition.</p>
       <figure class="figure">
         <img src="../outputs/figures/median_household_income_by_commune.png" alt="Median household income by commune">
-        <figcaption>Territorial inequality is easy to see. Higher-income communes do not just earn more; they also tend to support smaller households.</figcaption>
+        <figcaption>Territorial inequality is visible immediately. Commune 14 reaches 70,000 in median household income, while Commune 8 sits at 35,000.</figcaption>
       </figure>
       <figure class="figure">
         <img src="../outputs/figures/gender_income_gap_decomposition.png" alt="Gender labor-income gap decomposition">
-        <figcaption>The explained component is negative and the unexplained component is strongly positive. In plain language, the gap is not coming from women in the sample having weaker measured characteristics.</figcaption>
+        <figcaption>The unexplained component of the gender gap remains large, which means standard observed characteristics do not fully account for the income difference.</figcaption>
       </figure>
-    </section>
-
-    <section class="section page-start">
-      <h2>What the ML layer adds</h2>
-      <p>I tested four out-of-sample models on log labor income. The best one is a tuned Gradient Boosting model. It does improve on the linear benchmark, but only slightly. That is useful because it suggests the main signal is already captured by a structured, interpretable specification.</p>
       <table>
         <thead>
           <tr>
-            <th>Model</th>
-            <th>MAE (log income)</th>
-            <th>RMSE (log income)</th>
-            <th>R-squared</th>
+            <th>Key result</th>
+            <th>Interpretation</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>Gradient Boosting</td>
-            <td>0.482</td>
-            <td>0.655</td>
-            <td>0.342</td>
+            <td>13.25% schooling premium</td>
+            <td>Each additional year of schooling is associated with higher labor income in the employed sample.</td>
           </tr>
           <tr>
-            <td>Linear benchmark</td>
-            <td>0.488</td>
-            <td>0.661</td>
-            <td>0.330</td>
+            <td>29.35% gender gap</td>
+            <td>Men earn more on average in the working sample.</td>
           </tr>
           <tr>
-            <td>Elastic Net</td>
-            <td>0.489</td>
-            <td>0.663</td>
-            <td>0.327</td>
-          </tr>
-          <tr>
-            <td>Random Forest</td>
-            <td>0.496</td>
-            <td>0.672</td>
-            <td>0.309</td>
+            <td>40.25% unexplained component</td>
+            <td>The gap is not mainly explained by women having weaker measured characteristics.</td>
           </tr>
         </tbody>
       </table>
+    </section>
+
+    <section class="section page-start">
+      <h2>What the ML layer adds</h2>
+      <p>The original presentation was strong because it was hypothesis-first. The ML layer is therefore treated here as a robustness test, not as the main attraction. I benchmarked four out-of-sample models on log labor income to see whether more flexibility materially improved fit.</p>
       <figure class="figure">
         <img src="../outputs/figures/ml_model_performance.png" alt="ML model performance comparison">
-        <figcaption>ML helps a little, but not enough to overturn the main conclusion. The real strength of the project remains interpretability plus economic meaning.</figcaption>
+        <figcaption>The best model is Gradient Boosting with R-squared of 0.342, only slightly above the linear benchmark. That means most of the useful structure is already captured by the interpretable specification.</figcaption>
       </figure>
       <figure class="figure">
         <img src="../outputs/figures/ml_feature_importance.png" alt="ML feature importance">
-        <figcaption>Schooling is still the main feature in the best ML model, followed by age, occupation, gender, and commune. That aligns well with the econometric reading instead of contradicting it.</figcaption>
+        <figcaption>Schooling remains the strongest feature group in the best ML model, followed by age, occupation, gender, and commune. The machine-learning result reinforces the economic story instead of replacing it.</figcaption>
       </figure>
     </section>
 
     <section class="section">
       <h2>Why this matters for hiring</h2>
-      <p>This repository works well in interviews because it shows range without becoming noisy. It starts with a real public dataset, moves into an interpretable labor-economics model, and then tests whether more flexible ML meaningfully improves the result.</p>
+      <p>This repository works well in interviews because it shows range without becoming noisy. It starts with a real public dataset, moves into an interpretable labor-economics model, and then tests whether more flexible ML materially changes the result. Just as important, it preserves the original academic rationale of the first delivery.</p>
       <div class="callout">
-        Hiring takeaway: this is the kind of project that signals good judgment. It does not just run models. It asks whether extra complexity changes the business or policy story in a meaningful way.
+        Hiring takeaway: this is the kind of project that signals good judgment. It combines theory, policy relevance, econometrics, and ML benchmarking without confusing prediction with explanation.
       </div>
     </section>
   </main>
