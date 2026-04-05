@@ -2,17 +2,18 @@
 
 ## What this project studies
 
-This repository uses the 2019 Buenos Aires Annual Household Survey to explain how income differences are distributed across the city and how those differences behave once the analysis moves from charts into econometrics. It now works as both a territorial inequality diagnostic and an applied labor-economics case.
+This repository uses the 2019 Buenos Aires Annual Household Survey to explain how income differences are distributed across the city and how those differences behave once the analysis moves from charts into modeling. It now works as a territorial inequality diagnostic, a labor-economics case, and a small but useful ML benchmark.
 
 ## Core question
 
-Which patterns appear most strongly when household income is read together with geography, education, and household composition, and how much of the observed gender labor-income gap can be explained by standard observable characteristics?
+Which patterns appear most strongly when household income is read together with geography, education, and household composition, how much of the observed gender labor-income gap can be explained by standard covariates, and do non-linear ML models materially improve predictive power?
 
 ## Working hypotheses
 
 - `H1`: income differences across Buenos Aires are structured by territory and household composition rather than randomly distributed.
 - `H2`: schooling has a meaningful positive association with labor income in the employed sample.
 - `H3`: the observed gender income gap is only partly explained by schooling, experience, and occupational sorting.
+- `H4`: ML may improve fit, but not necessarily enough to beat a strong interpretable baseline by a large margin.
 
 ## What the upgraded analysis shows
 
@@ -21,26 +22,30 @@ Which patterns appear most strongly when household income is read together with 
 - The econometric sample includes `6,656` employed adults with positive labor income.
 - In the semilog Mincer equation, each additional year of schooling is associated with a `13.25%` labor-income premium, holding potential experience, commune, occupational category, and gender constant.
 - The estimated male-female labor-income gap in the working sample is `29.35%`.
-- The Oaxaca-Blinder decomposition is the most interesting result: the explained component is `-7.77%`, while the unexplained component is `40.25%`. That means the raw gap is not coming from women in the sample having weaker measured endowments. If anything, the gap is driven by different returns to similar characteristics.
+- The Oaxaca-Blinder decomposition remains the strongest interpretation result: the explained component is `-7.77%`, while the unexplained component is `40.25%`.
+- The ML benchmark compares four out-of-sample models on log labor income. A tuned Gradient Boosting model performs best with `R^2 = 0.342`, only slightly above the linear benchmark at `0.330`.
 
 ## Why this matters
 
-That last point makes the repository materially stronger. A descriptive notebook can show that income differs across groups; an econometric layer can show whether those differences still persist after controlling for the basics. That shift matters for:
+That combination makes the repository materially stronger. The descriptive layer shows where inequality appears. The econometric layer quantifies the schooling premium and separates the gender gap into explained and unexplained components. The ML layer then asks a practical question: if we add non-linear flexibility, do we learn something materially new? The answer is "only a little," which is itself a valuable finding.
+
+That shift matters for:
 
 - urban analytics roles;
-- public-policy and labor-market research teams;
+- labor-market and public-policy research teams;
 - consulting work related to inequality, workforce diagnostics, or service targeting.
 
 ## Main conclusion
 
-The strongest conclusion is no longer just that richer communes exist. The portfolio-quality conclusion is that Buenos Aires shows both territorial inequality and a labor-market gap by gender that is not explained away by standard observed characteristics. In other words, the project now says something more analytical than "the bars look different": it quantifies the schooling premium and separates the gender gap into explained and unexplained components.
+The strongest conclusion is no longer just that richer communes exist. The portfolio-quality conclusion is that Buenos Aires shows both territorial inequality and a labor-market gap by gender that is not explained away by standard observed characteristics, while more complex predictive models add only modest incremental fit. In other words, the project now says something mature: interpretability carries most of the value here, and ML mainly confirms the structure rather than overturning it.
 
 ## Important caveats
 
 - The survey is cross-sectional, so the coefficients should be interpreted as associations rather than causal effects.
 - Potential experience is constructed rather than directly observed.
-- The decomposition is only as strong as the set of available covariates.
+- The Oaxaca decomposition would be stronger with bootstrap inference.
+- The ML benchmark is useful for robustness, but it should not be over-read as a causal or policy model.
 
 ## Portfolio takeaway
 
-This repository now works better as a professional case because it combines descriptive clarity, econometric discipline, and a conclusion that is both policy-relevant and easy to explain in an interview.
+This repository now works better as a professional case because it combines descriptive clarity, econometric discipline, and enough machine-learning benchmarking to show methodological range without overselling complexity.

@@ -10,6 +10,14 @@ import pandas as pd
 import seaborn as sns
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
+from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import ElasticNet, LinearRegression
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from statsmodels.stats.oaxaca import OaxacaBlinder
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -49,9 +57,25 @@ SEX_LABELS = {
 }
 
 
+ML_NUMERIC_FEATURES = [
+    'anos_escolaridad',
+    'edad',
+    'potential_experience',
+    'potential_experience_sq',
+    'children_count',
+]
+ML_CATEGORICAL_FEATURES = [
+    'comuna',
+    'sexo',
+    'cat_ocupacional',
+    'situacion_conyugal',
+    'nivel_max_educativo',
+]
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description='Build a household-level dataset and econometric summaries for the 2019 Household Survey.'
+        description='Build descriptive, econometric, and machine-learning outputs for the 2019 Household Survey.'
     )
     parser.add_argument(
         '--input-path',
@@ -122,6 +146,15 @@ def translate_label(value: object, mapping: dict[str, str]) -> object:
     if pd.isna(value):
         return 'Unspecified'
     return mapping.get(normalize_text_token(value), str(value))
+
+
+def trim_target_outliers(dataframe: pd.DataFrame, target_column: str) -> pd.DataFrame:
+    q1 = dataframe[target_column].quantile(0.25)
+    q3 = dataframe[target_column].quantile(0.75)
+    iqr = q3 - q1
+    lower_bound = q1 - 1.5 * iqr
+    upper_bound = q3 + 1.5 * iqr
+    return dataframe.loc[dataframe[target_column].between(lower_bound, upper_bound)].copy()
 
 
 def build_household_dataset(dataframe: pd.DataFrame) -> pd.DataFrame:
@@ -243,6 +276,7 @@ def build_individual_labor_frame(dataframe: pd.DataFrame) -> pd.DataFrame:
     labor_frame['potential_experience_sq'] = labor_frame['potential_experience'] ** 2
     labor_frame['log_labor_income'] = np.log(labor_frame['ingreso_total_lab'])
     labor_frame['male'] = (labor_frame['sexo'] == 'Varon').astype(int)
+    labor_frame['children_count'] = labor_frame['cantidad_hijos_nac_vivos'].fillna(0)
 
     return labor_frame
 
@@ -361,6 +395,185 @@ def build_oaxaca_summary(two_fold_result, three_fold_result) -> tuple[pd.DataFra
     return two_fold, three_fold
 
 
+def get_linear_preprocessor() -> ColumnTransformer:
+    return ColumnTransformer(
+        transformers=[
+            (
+                'num',
+                Pipeline(
+                    steps=[
+                        ('imputer', SimpleImputer(strategy='median')),
+                        ('scaler', StandardScaler()),
+                    ]
+                ),
+                ML_NUMERIC_FEATURES,
+            ),
+            (
+                'cat',
+                Pipeline(
+                    steps=[
+                        ('imputer', SimpleImputer(strategy='most_frequent')),
+                        ('encoder', OneHotEncoder(handle_unknown='ignore')),
+                    ]
+                ),
+                ML_CATEGORICAL_FEATURES,
+            ),
+        ]
+    )
+
+
+def get_tree_preprocessor() -> ColumnTransformer:
+    return ColumnTransformer(
+        transformers=[
+            ('num', SimpleImputer(strategy='median'), ML_NUMERIC_FEATURES),
+            (
+                'cat',
+                Pipeline(
+                    steps=[
+                        ('imputer', SimpleImputer(strategy='most_frequent')),
+                        ('encoder', OneHotEncoder(handle_unknown='ignore')),
+                    ]
+                ),
+                ML_CATEGORICAL_FEATURES,
+            ),
+        ]
+    )
+
+
+def collapse_feature_name(feature_name: str) -> str:
+    clean_name = feature_name.replace('num__', '').replace('cat__', '')
+    for base_feature in ML_NUMERIC_FEATURES + ML_CATEGORICAL_FEATURES:
+        if clean_name == base_feature or clean_name.startswith(f'{base_feature}_'):
+            return base_feature
+    return clean_name
+
+
+def evaluate_predictions(model_name: str, y_true_log: pd.Series, y_pred_log: np.ndarray) -> dict[str, float | str]:
+    y_true_income = np.exp(y_true_log)
+    y_pred_income = np.exp(y_pred_log)
+    return {
+        'model': model_name,
+        'mae_log': mean_absolute_error(y_true_log, y_pred_log),
+        'rmse_log': mean_squared_error(y_true_log, y_pred_log) ** 0.5,
+        'r2_log': r2_score(y_true_log, y_pred_log),
+        'mae_income': mean_absolute_error(y_true_income, y_pred_income),
+        'rmse_income': mean_squared_error(y_true_income, y_pred_income) ** 0.5,
+    }
+
+
+def run_ml_models(labor_frame: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    ml_frame = trim_target_outliers(labor_frame, 'ingreso_total_lab')
+    features = ml_frame[ML_NUMERIC_FEATURES + ML_CATEGORICAL_FEATURES]
+    target = ml_frame['log_labor_income']
+
+    X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.3, random_state=42)
+
+    models: dict[str, Pipeline] = {
+        'Linear benchmark': Pipeline(
+            steps=[
+                ('preprocessor', get_linear_preprocessor()),
+                ('model', LinearRegression()),
+            ]
+        ),
+        'Elastic Net': Pipeline(
+            steps=[
+                ('preprocessor', get_linear_preprocessor()),
+                ('model', ElasticNet(alpha=0.001, l1_ratio=0.2, max_iter=10000)),
+            ]
+        ),
+        'Random Forest': Pipeline(
+            steps=[
+                ('preprocessor', get_tree_preprocessor()),
+                (
+                    'model',
+                    RandomForestRegressor(
+                        n_estimators=350,
+                        max_depth=12,
+                        min_samples_leaf=6,
+                        random_state=42,
+                        n_jobs=-1,
+                    ),
+                ),
+            ]
+        ),
+        'Gradient Boosting': Pipeline(
+            steps=[
+                ('preprocessor', get_tree_preprocessor()),
+                (
+                    'model',
+                    GradientBoostingRegressor(
+                        n_estimators=400,
+                        learning_rate=0.05,
+                        max_depth=2,
+                        subsample=0.85,
+                        random_state=42,
+                    ),
+                ),
+            ]
+        ),
+    }
+
+    metrics_rows: list[dict[str, float | str]] = []
+    best_model_name = ''
+    best_model: Pipeline | None = None
+    best_predictions: np.ndarray | None = None
+    best_r2 = -np.inf
+
+    for model_name, model in models.items():
+        model.fit(X_train, y_train)
+        predictions = model.predict(X_test)
+        metrics = evaluate_predictions(model_name, y_test, predictions)
+        metrics_rows.append(metrics)
+        if metrics['r2_log'] > best_r2:
+            best_r2 = float(metrics['r2_log'])
+            best_model_name = model_name
+            best_model = model
+            best_predictions = predictions
+
+    model_comparison = pd.DataFrame(metrics_rows).sort_values('r2_log', ascending=False)
+
+    if best_model is None or best_predictions is None:
+        raise RuntimeError('Best ML model could not be determined.')
+
+    best_estimator = best_model.named_steps['model']
+    best_params = pd.DataFrame(
+        [
+            {'model': best_model_name, 'parameter': key, 'value': value}
+            for key, value in best_estimator.get_params().items()
+            if key in {'alpha', 'l1_ratio', 'learning_rate', 'max_depth', 'min_samples_leaf', 'n_estimators', 'subsample'}
+        ]
+    )
+
+    if hasattr(best_estimator, 'feature_importances_'):
+        feature_names = best_model.named_steps['preprocessor'].get_feature_names_out()
+        feature_importance = pd.DataFrame(
+            {
+                'feature': feature_names,
+                'importance': best_estimator.feature_importances_,
+            }
+        )
+        feature_importance['feature_group'] = feature_importance['feature'].map(collapse_feature_name)
+        feature_importance = (
+            feature_importance.groupby('feature_group', as_index=False)['importance']
+            .sum()
+            .sort_values('importance', ascending=False)
+        )
+    else:
+        feature_importance = pd.DataFrame(columns=['feature_group', 'importance'])
+
+    prediction_frame = pd.DataFrame(
+        {
+            'actual_log_income': y_test,
+            'predicted_log_income': best_predictions,
+            'actual_income': np.exp(y_test),
+            'predicted_income': np.exp(best_predictions),
+            'model': best_model_name,
+        }
+    ).reset_index(drop=True)
+
+    return model_comparison, best_params, feature_importance, prediction_frame
+
+
 def export_tables(
     households: pd.DataFrame,
     commune_summary: pd.DataFrame,
@@ -370,6 +583,9 @@ def export_tables(
     mincer_summary: pd.DataFrame,
     oaxaca_two_fold_summary: pd.DataFrame,
     oaxaca_three_fold_summary: pd.DataFrame,
+    ml_model_comparison: pd.DataFrame,
+    ml_best_params: pd.DataFrame,
+    ml_feature_importance: pd.DataFrame,
 ) -> None:
     households.to_csv(TABLES_DIR / 'household_dataset.csv', index=False)
     commune_summary.to_csv(TABLES_DIR / 'commune_income_summary.csv', index=False)
@@ -379,6 +595,9 @@ def export_tables(
     mincer_summary.to_csv(TABLES_DIR / 'mincer_coefficients.csv', index=False)
     oaxaca_two_fold_summary.to_csv(TABLES_DIR / 'oaxaca_two_fold_summary.csv', index=False)
     oaxaca_three_fold_summary.to_csv(TABLES_DIR / 'oaxaca_three_fold_summary.csv', index=False)
+    ml_model_comparison.to_csv(TABLES_DIR / 'ml_model_comparison.csv', index=False)
+    ml_best_params.to_csv(TABLES_DIR / 'ml_best_params.csv', index=False)
+    ml_feature_importance.to_csv(TABLES_DIR / 'ml_feature_importance.csv', index=False)
 
 
 def export_figures(
@@ -387,6 +606,9 @@ def export_figures(
     labor_frame: pd.DataFrame,
     mincer_model,
     oaxaca_two_fold_summary: pd.DataFrame,
+    ml_model_comparison: pd.DataFrame,
+    ml_feature_importance: pd.DataFrame,
+    ml_prediction_frame: pd.DataFrame,
 ) -> None:
     sns.set_theme(style='whitegrid')
 
@@ -422,7 +644,12 @@ def export_figures(
     reference_commune = int(labor_frame['comuna'].mode().iloc[0])
     reference_occupation = str(labor_frame['cat_ocupacional'].mode().iloc[0])
     reference_experience = float(labor_frame['potential_experience'].median())
-    school_years = list(range(int(labor_frame['anos_escolaridad'].quantile(0.05)), int(labor_frame['anos_escolaridad'].quantile(0.95)) + 1))
+    school_years = list(
+        range(
+            int(labor_frame['anos_escolaridad'].quantile(0.05)),
+            int(labor_frame['anos_escolaridad'].quantile(0.95)) + 1,
+        )
+    )
 
     prediction_rows: list[dict[str, float | int | str]] = []
     for sex in ['Mujer', 'Varon']:
@@ -478,6 +705,39 @@ def export_figures(
     plt.savefig(FIGURES_DIR / 'gender_income_gap_decomposition.png', dpi=150)
     plt.close()
 
+    plt.figure(figsize=(11, 6))
+    sns.barplot(data=ml_model_comparison, x='model', y='r2_log', color='#2e8b57')
+    plt.title('Out-of-sample ML benchmark on log labor income')
+    plt.xlabel('Model')
+    plt.ylabel('R-squared on log income')
+    plt.xticks(rotation=20, ha='right')
+    plt.tight_layout()
+    plt.savefig(FIGURES_DIR / 'ml_model_performance.png', dpi=150)
+    plt.close()
+
+    if not ml_feature_importance.empty:
+        plt.figure(figsize=(11, 6))
+        sns.barplot(data=ml_feature_importance.head(10), x='importance', y='feature_group', color='#6b5ca5')
+        plt.title('Most important features in the best ML model')
+        plt.xlabel('Importance')
+        plt.ylabel('Feature group')
+        plt.tight_layout()
+        plt.savefig(FIGURES_DIR / 'ml_feature_importance.png', dpi=150)
+        plt.close()
+
+    plt.figure(figsize=(7, 7))
+    plot_frame = ml_prediction_frame.copy().sort_values('actual_income')
+    sns.scatterplot(data=plot_frame, x='actual_income', y='predicted_income', s=24, alpha=0.6, color='#1f4b6e')
+    min_value = min(plot_frame['actual_income'].min(), plot_frame['predicted_income'].min())
+    max_value = max(plot_frame['actual_income'].max(), plot_frame['predicted_income'].max())
+    plt.plot([min_value, max_value], [min_value, max_value], color='#b94a48', linewidth=1.5)
+    plt.title('Actual vs predicted income in the best ML model')
+    plt.xlabel('Actual labor income')
+    plt.ylabel('Predicted labor income')
+    plt.tight_layout()
+    plt.savefig(FIGURES_DIR / 'ml_actual_vs_predicted.png', dpi=150)
+    plt.close()
+
 
 def print_summary(
     households: pd.DataFrame,
@@ -485,6 +745,7 @@ def print_summary(
     labor_frame: pd.DataFrame,
     mincer_summary: pd.DataFrame,
     oaxaca_two_fold_summary: pd.DataFrame,
+    ml_model_comparison: pd.DataFrame,
 ) -> None:
     schooling_effect = float(
         mincer_summary.loc[mincer_summary['term'] == 'anos_escolaridad', 'approx_pct_effect'].iloc[0]
@@ -493,6 +754,7 @@ def print_summary(
     unexplained_component = float(
         oaxaca_two_fold_summary.loc[oaxaca_two_fold_summary['component'] == 'Unexplained effect', 'pct_gap'].iloc[0]
     )
+    best_ml_model = ml_model_comparison.iloc[0]
 
     print('=== Project summary ===')
     print(f'Households analyzed: {len(households):,}')
@@ -501,6 +763,7 @@ def print_summary(
     print(f'Estimated schooling premium per year: {schooling_effect:.2f}%')
     print(f'Gender labor-income gap: {total_gap:.2f}%')
     print(f'Unexplained component of the gap: {unexplained_component:.2f}%')
+    print(f"Best ML benchmark: {best_ml_model['model']} (R^2 on log income = {best_ml_model['r2_log']:.3f})")
 
     print('\nTop 5 communes by median household income:')
     print(commune_summary.head(5).to_string(index=False))
@@ -514,10 +777,16 @@ def print_summary(
     print(f'- {TABLES_DIR / "mincer_coefficients.csv"}')
     print(f'- {TABLES_DIR / "oaxaca_two_fold_summary.csv"}')
     print(f'- {TABLES_DIR / "oaxaca_three_fold_summary.csv"}')
+    print(f'- {TABLES_DIR / "ml_model_comparison.csv"}')
+    print(f'- {TABLES_DIR / "ml_best_params.csv"}')
+    print(f'- {TABLES_DIR / "ml_feature_importance.csv"}')
     print(f'- {FIGURES_DIR / "median_household_income_by_commune.png"}')
     print(f'- {FIGURES_DIR / "average_income_by_education.png"}')
     print(f'- {FIGURES_DIR / "predicted_labor_income_by_schooling_gender.png"}')
     print(f'- {FIGURES_DIR / "gender_income_gap_decomposition.png"}')
+    print(f'- {FIGURES_DIR / "ml_model_performance.png"}')
+    print(f'- {FIGURES_DIR / "ml_feature_importance.png"}')
+    print(f'- {FIGURES_DIR / "ml_actual_vs_predicted.png"}')
 
 
 def main() -> None:
@@ -540,6 +809,7 @@ def main() -> None:
         oaxaca_two_fold_result,
         oaxaca_three_fold_result,
     )
+    ml_model_comparison, ml_best_params, ml_feature_importance, ml_prediction_frame = run_ml_models(labor_frame)
 
     export_tables(
         households,
@@ -550,6 +820,9 @@ def main() -> None:
         mincer_summary,
         oaxaca_two_fold_summary,
         oaxaca_three_fold_summary,
+        ml_model_comparison,
+        ml_best_params,
+        ml_feature_importance,
     )
     export_figures(
         commune_summary,
@@ -557,6 +830,9 @@ def main() -> None:
         labor_frame,
         mincer_model,
         oaxaca_two_fold_summary,
+        ml_model_comparison,
+        ml_feature_importance,
+        ml_prediction_frame,
     )
     print_summary(
         households,
@@ -564,6 +840,7 @@ def main() -> None:
         labor_frame,
         mincer_summary,
         oaxaca_two_fold_summary,
+        ml_model_comparison,
     )
 
 
