@@ -3,6 +3,7 @@ numpy
 matplotlib
 seaborn
 statsmodels
+scipy
 missingno
 gdown
 scikit-learn

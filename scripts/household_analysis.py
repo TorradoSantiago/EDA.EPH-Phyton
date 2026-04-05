@@ -2,6 +2,7 @@
 
 import argparse
 import unicodedata
+import warnings
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -10,15 +11,18 @@ import pandas as pd
 import seaborn as sns
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
+from scipy import stats as scipy_stats
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import ElasticNet, LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold, cross_validate, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from statsmodels.stats.diagnostic import het_breuschpagan, linear_reset
 from statsmodels.stats.oaxaca import OaxacaBlinder
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_INPUT = BASE_DIR / 'annual_household_survey_2019.csv'
@@ -82,6 +86,12 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=DEFAULT_INPUT,
         help='Path to the Annual Household Survey CSV file.',
+    )
+    parser.add_argument(
+        '--oaxaca-bootstrap-iterations',
+        type=int,
+        default=200,
+        help='Bootstrap iterations used to estimate confidence bands for the Oaxaca two-fold decomposition.',
     )
     return parser.parse_args()
 
@@ -274,6 +284,8 @@ def build_individual_labor_frame(dataframe: pd.DataFrame) -> pd.DataFrame:
 
     labor_frame['potential_experience'] = (labor_frame['edad'] - labor_frame['anos_escolaridad'] - 6).clip(lower=0)
     labor_frame['potential_experience_sq'] = labor_frame['potential_experience'] ** 2
+    labor_frame['experience_centered'] = labor_frame['potential_experience'] - labor_frame['potential_experience'].mean()
+    labor_frame['experience_centered_sq'] = labor_frame['experience_centered'] ** 2
     labor_frame['log_labor_income'] = np.log(labor_frame['ingreso_total_lab'])
     labor_frame['male'] = (labor_frame['sexo'] == 'Varon').astype(int)
     labor_frame['children_count'] = labor_frame['cantidad_hijos_nac_vivos'].fillna(0)
@@ -281,19 +293,21 @@ def build_individual_labor_frame(dataframe: pd.DataFrame) -> pd.DataFrame:
     return labor_frame
 
 
-def fit_mincer_model(labor_frame: pd.DataFrame):
+def fit_mincer_models(labor_frame: pd.DataFrame):
     formula = (
-        'log_labor_income ~ anos_escolaridad + potential_experience + '
-        'I(potential_experience ** 2) + C(cat_ocupacional) + C(comuna) + C(sexo)'
+        'log_labor_income ~ anos_escolaridad + experience_centered + '
+        'I(experience_centered ** 2) + C(cat_ocupacional) + C(comuna) + C(sexo)'
     )
-    return smf.ols(formula, data=labor_frame).fit(cov_type='HC3')
+    base_model = smf.ols(formula, data=labor_frame).fit()
+    robust_model = smf.ols(formula, data=labor_frame).fit(cov_type='HC3')
+    return formula, base_model, robust_model
 
 
 def build_mincer_summary(model) -> pd.DataFrame:
     key_terms = {
         'anos_escolaridad': 'Additional year of schooling',
-        'potential_experience': 'Potential experience',
-        'I(potential_experience ** 2)': 'Potential experience squared',
+        'experience_centered': 'Potential experience (centered)',
+        'I(experience_centered ** 2)': 'Potential experience squared',
         'C(sexo)[T.Varon]': 'Male income premium',
     }
 
@@ -308,6 +322,72 @@ def build_mincer_summary(model) -> pd.DataFrame:
                 'std_error': float(model.bse[term]),
                 'p_value': float(model.pvalues[term]),
                 'approx_pct_effect': (np.exp(coefficient) - 1) * 100,
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
+def build_mincer_diagnostics(base_model) -> pd.DataFrame:
+    bp_lm, bp_lm_pvalue, bp_fvalue, bp_f_pvalue = het_breuschpagan(base_model.resid, base_model.model.exog)
+    reset_result = linear_reset(base_model, power=2, use_f=True)
+    jb_result = scipy_stats.jarque_bera(base_model.resid)
+
+    return pd.DataFrame(
+        [
+            {
+                'diagnostic': 'Adjusted R-squared',
+                'statistic': float(base_model.rsquared_adj),
+                'p_value': np.nan,
+                'interpretation': 'Share of log-income variation explained by the earnings equation.',
+            },
+            {
+                'diagnostic': 'Breusch-Pagan LM',
+                'statistic': float(bp_lm),
+                'p_value': float(bp_lm_pvalue),
+                'interpretation': 'Tests for heteroskedasticity in the residual variance.',
+            },
+            {
+                'diagnostic': 'Breusch-Pagan F',
+                'statistic': float(bp_fvalue),
+                'p_value': float(bp_f_pvalue),
+                'interpretation': 'F-version of the heteroskedasticity diagnostic.',
+            },
+            {
+                'diagnostic': 'RESET F',
+                'statistic': float(reset_result.fvalue),
+                'p_value': float(reset_result.pvalue),
+                'interpretation': 'Checks whether important nonlinear patterns remain omitted.',
+            },
+            {
+                'diagnostic': 'Jarque-Bera',
+                'statistic': float(jb_result.statistic),
+                'p_value': float(jb_result.pvalue),
+                'interpretation': 'Assesses whether residuals are normally distributed.',
+            },
+            {
+                'diagnostic': 'Observations',
+                'statistic': float(base_model.nobs),
+                'p_value': np.nan,
+                'interpretation': 'Working sample used in the labor-income model.',
+            },
+        ]
+    )
+
+
+def build_mincer_vif(labor_frame: pd.DataFrame) -> pd.DataFrame:
+    design = labor_frame[['anos_escolaridad', 'experience_centered', 'experience_centered_sq', 'male']].dropna()
+    design = sm.add_constant(design, has_constant='add')
+
+    rows: list[dict[str, float | str]] = []
+    for index, column in enumerate(design.columns):
+        if column == 'const':
+            continue
+        rows.append(
+            {
+                'term': column,
+                'vif': float(variance_inflation_factor(design.values, index)),
+                'interpretation': 'Values close to 1 suggest low multicollinearity after centering experience.',
             }
         )
 
@@ -331,17 +411,89 @@ def build_gender_income_summary(labor_frame: pd.DataFrame) -> pd.DataFrame:
     return summary
 
 
-def run_oaxaca_decomposition(labor_frame: pd.DataFrame):
+def build_statistical_tests(
+    dataframe: pd.DataFrame, households: pd.DataFrame, labor_frame: pd.DataFrame
+) -> pd.DataFrame:
+    adults = dataframe.loc[
+        dataframe['edad'].ge(18)
+        & dataframe['ingresos_totales'].gt(0)
+        & dataframe['nivel_max_educativo'].notna()
+    ].copy()
+
+    commune_groups = [
+        group['household_income'].dropna().values
+        for _, group in households.groupby('commune')
+        if group['household_income'].notna().sum() >= 20
+    ]
+    commune_test = scipy_stats.kruskal(*commune_groups)
+
+    household_size_test = scipy_stats.spearmanr(
+        households['household_members'], households['per_capita_income'], nan_policy='omit'
+    )
+
+    education_groups = [
+        group['ingresos_totales'].dropna().values
+        for _, group in adults.groupby('nivel_max_educativo')
+        if group['ingresos_totales'].notna().sum() >= 25
+    ]
+    education_test = scipy_stats.kruskal(*education_groups)
+
+    men_income = labor_frame.loc[labor_frame['sexo'] == 'Varon', 'ingreso_total_lab']
+    women_income = labor_frame.loc[labor_frame['sexo'] == 'Mujer', 'ingreso_total_lab']
+    gender_test = scipy_stats.mannwhitneyu(men_income, women_income, alternative='two-sided')
+
+    return pd.DataFrame(
+        [
+            {
+                'test_id': 'T1',
+                'question': 'Do household-income distributions differ across communes?',
+                'test': 'Kruskal-Wallis',
+                'statistic': float(commune_test.statistic),
+                'p_value': float(commune_test.pvalue),
+                'key_signal': 'Reject equal medians across communes; geography matters for household income.',
+            },
+            {
+                'test_id': 'T2',
+                'question': 'Is household size monotonically associated with per-capita income?',
+                'test': 'Spearman correlation',
+                'statistic': float(household_size_test.statistic),
+                'p_value': float(household_size_test.pvalue),
+                'key_signal': 'Larger households are associated with lower per-capita income.',
+            },
+            {
+                'test_id': 'T3',
+                'question': 'Do education groups show different individual income distributions?',
+                'test': 'Kruskal-Wallis',
+                'statistic': float(education_test.statistic),
+                'p_value': float(education_test.pvalue),
+                'key_signal': 'Income rises meaningfully across schooling categories before modeling.',
+            },
+            {
+                'test_id': 'T4',
+                'question': 'Do men and women show different labor-income distributions in the employed sample?',
+                'test': 'Mann-Whitney U',
+                'statistic': float(gender_test.statistic),
+                'p_value': float(gender_test.pvalue),
+                'key_signal': 'The raw gender gap is visible even before conditioning on controls.',
+            },
+        ]
+    )
+
+
+def build_oaxaca_design_matrix(labor_frame: pd.DataFrame) -> pd.DataFrame:
     exog = pd.concat(
         [
-            labor_frame[['male', 'anos_escolaridad', 'potential_experience', 'potential_experience_sq']].astype(float),
+            labor_frame[['male', 'anos_escolaridad', 'experience_centered', 'experience_centered_sq']].astype(float),
             pd.get_dummies(labor_frame['comuna'], prefix='commune', drop_first=True, dtype=float),
             pd.get_dummies(labor_frame['cat_ocupacional'], prefix='occupation', drop_first=True, dtype=float),
         ],
         axis=1,
     )
-    exog = sm.add_constant(exog, has_constant='add')
+    return sm.add_constant(exog, has_constant='add')
 
+
+def run_oaxaca_decomposition(labor_frame: pd.DataFrame):
+    exog = build_oaxaca_design_matrix(labor_frame)
     model = OaxacaBlinder(labor_frame['log_labor_income'], exog, 'male', hasconst=True)
     return model.two_fold(), model.three_fold()
 
@@ -393,6 +545,63 @@ def build_oaxaca_summary(two_fold_result, three_fold_result) -> tuple[pd.DataFra
     )
 
     return two_fold, three_fold
+
+
+def bootstrap_oaxaca(labor_frame: pd.DataFrame, iterations: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+    male_frame = labor_frame.loc[labor_frame['male'] == 1].copy()
+    female_frame = labor_frame.loc[labor_frame['male'] == 0].copy()
+    draws: list[dict[str, float | int | str]] = []
+
+    for iteration in range(iterations):
+        sample = pd.concat(
+            [
+                male_frame.sample(n=len(male_frame), replace=True, random_state=42 + iteration),
+                female_frame.sample(n=len(female_frame), replace=True, random_state=142 + iteration),
+            ],
+            ignore_index=True,
+        )
+
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                result, _ = run_oaxaca_decomposition(sample)
+        except Exception:
+            continue
+
+        for component, value in zip(
+            ['Unexplained effect', 'Explained effect', 'Total gap'],
+            result.params,
+            strict=True,
+        ):
+            draws.append(
+                {
+                    'iteration': iteration,
+                    'component': component,
+                    'log_points': float(value),
+                }
+            )
+
+    draws_frame = pd.DataFrame(draws)
+    if draws_frame.empty:
+        raise RuntimeError('Bootstrap Oaxaca estimation failed for all iterations.')
+
+    summary = (
+        draws_frame.groupby('component')['log_points']
+        .agg(mean_log_points='mean', std_log_points='std', successful_iterations='count')
+        .reset_index()
+    )
+    quantiles = (
+        draws_frame.groupby('component')['log_points']
+        .quantile([0.025, 0.5, 0.975])
+        .unstack()
+        .rename(columns={0.025: 'ci_low', 0.5: 'median_log_points', 0.975: 'ci_high'})
+        .reset_index()
+    )
+    summary = summary.merge(quantiles, on='component', how='left')
+    summary['mean_pct_gap'] = (np.exp(summary['mean_log_points']) - 1) * 100
+    summary['ci_low_pct_gap'] = (np.exp(summary['ci_low']) - 1) * 100
+    summary['ci_high_pct_gap'] = (np.exp(summary['ci_high']) - 1) * 100
+    return draws_frame, summary
 
 
 def get_linear_preprocessor() -> ColumnTransformer:
@@ -461,7 +670,36 @@ def evaluate_predictions(model_name: str, y_true_log: pd.Series, y_pred_log: np.
     }
 
 
-def run_ml_models(labor_frame: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def build_ml_cross_validation(features: pd.DataFrame, target: pd.Series, models: dict[str, Pipeline]) -> pd.DataFrame:
+    cv = KFold(n_splits=5, shuffle=True, random_state=42)
+    scoring = {
+        'r2': 'r2',
+        'neg_mae': 'neg_mean_absolute_error',
+        'neg_mse': 'neg_mean_squared_error',
+    }
+
+    rows: list[dict[str, float | str]] = []
+    for model_name, model in models.items():
+        scores = cross_validate(model, features, target, cv=cv, scoring=scoring, n_jobs=1)
+        rmse_values = np.sqrt(-scores['test_neg_mse'])
+        rows.append(
+            {
+                'model': model_name,
+                'cv_r2_mean': float(scores['test_r2'].mean()),
+                'cv_r2_std': float(scores['test_r2'].std(ddof=0)),
+                'cv_mae_mean': float((-scores['test_neg_mae']).mean()),
+                'cv_mae_std': float((-scores['test_neg_mae']).std(ddof=0)),
+                'cv_rmse_mean': float(rmse_values.mean()),
+                'cv_rmse_std': float(rmse_values.std(ddof=0)),
+            }
+        )
+
+    return pd.DataFrame(rows).sort_values('cv_r2_mean', ascending=False)
+
+
+def run_ml_models(
+    labor_frame: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     ml_frame = trim_target_outliers(labor_frame, 'ingreso_total_lab')
     features = ml_frame[ML_NUMERIC_FEATURES + ML_CATEGORICAL_FEATURES]
     target = ml_frame['log_labor_income']
@@ -570,8 +808,9 @@ def run_ml_models(labor_frame: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame
             'model': best_model_name,
         }
     ).reset_index(drop=True)
+    ml_cross_validation = build_ml_cross_validation(features, target, models)
 
-    return model_comparison, best_params, feature_importance, prediction_frame
+    return model_comparison, best_params, feature_importance, prediction_frame, ml_cross_validation
 
 
 def export_tables(
@@ -581,11 +820,16 @@ def export_tables(
     marital_status_summary: pd.DataFrame,
     gender_income_summary: pd.DataFrame,
     mincer_summary: pd.DataFrame,
+    mincer_diagnostics: pd.DataFrame,
+    mincer_vif: pd.DataFrame,
+    statistical_tests: pd.DataFrame,
     oaxaca_two_fold_summary: pd.DataFrame,
     oaxaca_three_fold_summary: pd.DataFrame,
+    oaxaca_bootstrap_summary: pd.DataFrame,
     ml_model_comparison: pd.DataFrame,
     ml_best_params: pd.DataFrame,
     ml_feature_importance: pd.DataFrame,
+    ml_cross_validation: pd.DataFrame,
 ) -> None:
     households.to_csv(TABLES_DIR / 'household_dataset.csv', index=False)
     commune_summary.to_csv(TABLES_DIR / 'commune_income_summary.csv', index=False)
@@ -593,22 +837,29 @@ def export_tables(
     marital_status_summary.to_csv(TABLES_DIR / 'marital_status_income_summary.csv', index=False)
     gender_income_summary.to_csv(TABLES_DIR / 'gender_income_summary.csv', index=False)
     mincer_summary.to_csv(TABLES_DIR / 'mincer_coefficients.csv', index=False)
+    mincer_diagnostics.to_csv(TABLES_DIR / 'mincer_diagnostics.csv', index=False)
+    mincer_vif.to_csv(TABLES_DIR / 'mincer_vif.csv', index=False)
+    statistical_tests.to_csv(TABLES_DIR / 'statistical_tests.csv', index=False)
     oaxaca_two_fold_summary.to_csv(TABLES_DIR / 'oaxaca_two_fold_summary.csv', index=False)
     oaxaca_three_fold_summary.to_csv(TABLES_DIR / 'oaxaca_three_fold_summary.csv', index=False)
+    oaxaca_bootstrap_summary.to_csv(TABLES_DIR / 'oaxaca_bootstrap_summary.csv', index=False)
     ml_model_comparison.to_csv(TABLES_DIR / 'ml_model_comparison.csv', index=False)
     ml_best_params.to_csv(TABLES_DIR / 'ml_best_params.csv', index=False)
     ml_feature_importance.to_csv(TABLES_DIR / 'ml_feature_importance.csv', index=False)
+    ml_cross_validation.to_csv(TABLES_DIR / 'ml_cross_validation.csv', index=False)
 
 
 def export_figures(
     commune_summary: pd.DataFrame,
     education_summary: pd.DataFrame,
     labor_frame: pd.DataFrame,
-    mincer_model,
+    mincer_summary: pd.DataFrame,
     oaxaca_two_fold_summary: pd.DataFrame,
+    oaxaca_bootstrap_summary: pd.DataFrame,
     ml_model_comparison: pd.DataFrame,
     ml_feature_importance: pd.DataFrame,
     ml_prediction_frame: pd.DataFrame,
+    ml_cross_validation: pd.DataFrame,
 ) -> None:
     sns.set_theme(style='whitegrid')
 
@@ -641,9 +892,23 @@ def export_figures(
     plt.savefig(FIGURES_DIR / 'average_income_by_education.png', dpi=150)
     plt.close()
 
+    plot_frame = mincer_summary.copy()
+    plt.figure(figsize=(9, 5))
+    sns.barplot(data=plot_frame, x='label', y='approx_pct_effect', hue='label', dodge=False, palette='Blues_d')
+    legend = plt.gca().get_legend()
+    if legend is not None:
+        legend.remove()
+    plt.axhline(0, color='#333333', linewidth=1)
+    plt.title('Key effects from the Mincer earnings equation')
+    plt.xlabel('')
+    plt.ylabel('Approximate percent effect')
+    plt.xticks(rotation=18, ha='right')
+    plt.tight_layout()
+    plt.savefig(FIGURES_DIR / 'mincer_key_effects.png', dpi=150)
+    plt.close()
+
     reference_commune = int(labor_frame['comuna'].mode().iloc[0])
     reference_occupation = str(labor_frame['cat_ocupacional'].mode().iloc[0])
-    reference_experience = float(labor_frame['potential_experience'].median())
     school_years = list(
         range(
             int(labor_frame['anos_escolaridad'].quantile(0.05)),
@@ -657,7 +922,7 @@ def export_figures(
             prediction_rows.append(
                 {
                     'anos_escolaridad': years,
-                    'potential_experience': reference_experience,
+                    'experience_centered': 0.0,
                     'cat_ocupacional': reference_occupation,
                     'comuna': reference_commune,
                     'sexo': sex,
@@ -665,7 +930,15 @@ def export_figures(
             )
 
     prediction_frame = pd.DataFrame(prediction_rows)
-    prediction_frame['predicted_labor_income'] = np.exp(mincer_model.predict(prediction_frame))
+    schooling_effect = float(
+        mincer_summary.loc[mincer_summary['term'] == 'anos_escolaridad', 'coefficient'].iloc[0]
+    )
+    male_effect = float(
+        mincer_summary.loc[mincer_summary['term'] == 'C(sexo)[T.Varon]', 'coefficient'].iloc[0]
+    )
+    prediction_frame['predicted_log_income'] = schooling_effect * prediction_frame['anos_escolaridad']
+    prediction_frame.loc[prediction_frame['sexo'] == 'Varon', 'predicted_log_income'] += male_effect
+    prediction_frame['predicted_labor_income'] = np.exp(prediction_frame['predicted_log_income'])
     prediction_frame['group'] = prediction_frame['sexo'].map(lambda value: translate_label(value, SEX_LABELS))
 
     plt.figure(figsize=(12, 6))
@@ -705,6 +978,31 @@ def export_figures(
     plt.savefig(FIGURES_DIR / 'gender_income_gap_decomposition.png', dpi=150)
     plt.close()
 
+    oaxaca_ci_plot = oaxaca_bootstrap_summary.loc[
+        oaxaca_bootstrap_summary['component'] != 'Total gap'
+    ].copy()
+    lower_error = oaxaca_ci_plot['mean_pct_gap'] - oaxaca_ci_plot['ci_low_pct_gap']
+    upper_error = oaxaca_ci_plot['ci_high_pct_gap'] - oaxaca_ci_plot['mean_pct_gap']
+
+    plt.figure(figsize=(9, 5))
+    plt.errorbar(
+        x=oaxaca_ci_plot['mean_pct_gap'],
+        y=oaxaca_ci_plot['component'],
+        xerr=[lower_error, upper_error],
+        fmt='o',
+        color='#145da0',
+        ecolor='#7aa6d6',
+        elinewidth=2.2,
+        capsize=4,
+    )
+    plt.axvline(0, color='#333333', linewidth=1, linestyle='--')
+    plt.title('Bootstrap confidence intervals for the Oaxaca decomposition')
+    plt.xlabel('Percent gap')
+    plt.ylabel('')
+    plt.tight_layout()
+    plt.savefig(FIGURES_DIR / 'oaxaca_bootstrap_ci.png', dpi=150)
+    plt.close()
+
     plt.figure(figsize=(11, 6))
     sns.barplot(data=ml_model_comparison, x='model', y='r2_log', color='#2e8b57')
     plt.title('Out-of-sample ML benchmark on log labor income')
@@ -738,12 +1036,36 @@ def export_figures(
     plt.savefig(FIGURES_DIR / 'ml_actual_vs_predicted.png', dpi=150)
     plt.close()
 
+    plt.figure(figsize=(11, 6))
+    sns.barplot(data=ml_cross_validation, x='model', y='cv_r2_mean', hue='model', dodge=False, palette='rocket')
+    legend = plt.gca().get_legend()
+    if legend is not None:
+        legend.remove()
+    plt.errorbar(
+        x=np.arange(len(ml_cross_validation)),
+        y=ml_cross_validation['cv_r2_mean'],
+        yerr=ml_cross_validation['cv_r2_std'],
+        fmt='none',
+        ecolor='#213547',
+        capsize=4,
+        linewidth=1.5,
+    )
+    plt.title('Five-fold cross-validation R-squared')
+    plt.xlabel('Model')
+    plt.ylabel('Cross-validated R-squared')
+    plt.xticks(rotation=18, ha='right')
+    plt.tight_layout()
+    plt.savefig(FIGURES_DIR / 'ml_cross_validation_r2.png', dpi=150)
+    plt.close()
+
 
 def print_summary(
     households: pd.DataFrame,
     commune_summary: pd.DataFrame,
+    statistical_tests: pd.DataFrame,
     labor_frame: pd.DataFrame,
     mincer_summary: pd.DataFrame,
+    oaxaca_bootstrap_summary: pd.DataFrame,
     oaxaca_two_fold_summary: pd.DataFrame,
     ml_model_comparison: pd.DataFrame,
 ) -> None:
@@ -752,8 +1074,11 @@ def print_summary(
     )
     total_gap = float(oaxaca_two_fold_summary.loc[oaxaca_two_fold_summary['component'] == 'Total gap', 'pct_gap'].iloc[0])
     unexplained_component = float(
-        oaxaca_two_fold_summary.loc[oaxaca_two_fold_summary['component'] == 'Unexplained effect', 'pct_gap'].iloc[0]
+        oaxaca_bootstrap_summary.loc[
+            oaxaca_bootstrap_summary['component'] == 'Unexplained effect', 'mean_pct_gap'
+        ].iloc[0]
     )
+    commune_test_pvalue = float(statistical_tests.loc[statistical_tests['test_id'] == 'T1', 'p_value'].iloc[0])
     best_ml_model = ml_model_comparison.iloc[0]
 
     print('=== Project summary ===')
@@ -762,7 +1087,8 @@ def print_summary(
     print(f'Workers in econometric sample: {len(labor_frame):,}')
     print(f'Estimated schooling premium per year: {schooling_effect:.2f}%')
     print(f'Gender labor-income gap: {total_gap:.2f}%')
-    print(f'Unexplained component of the gap: {unexplained_component:.2f}%')
+    print(f'Bootstrap unexplained component of the gap: {unexplained_component:.2f}%')
+    print(f'Commune distribution test p-value: {commune_test_pvalue:.3g}')
     print(f"Best ML benchmark: {best_ml_model['model']} (R^2 on log income = {best_ml_model['r2_log']:.3f})")
 
     print('\nTop 5 communes by median household income:')
@@ -775,18 +1101,26 @@ def print_summary(
     print(f'- {TABLES_DIR / "marital_status_income_summary.csv"}')
     print(f'- {TABLES_DIR / "gender_income_summary.csv"}')
     print(f'- {TABLES_DIR / "mincer_coefficients.csv"}')
+    print(f'- {TABLES_DIR / "mincer_diagnostics.csv"}')
+    print(f'- {TABLES_DIR / "mincer_vif.csv"}')
+    print(f'- {TABLES_DIR / "statistical_tests.csv"}')
     print(f'- {TABLES_DIR / "oaxaca_two_fold_summary.csv"}')
     print(f'- {TABLES_DIR / "oaxaca_three_fold_summary.csv"}')
+    print(f'- {TABLES_DIR / "oaxaca_bootstrap_summary.csv"}')
     print(f'- {TABLES_DIR / "ml_model_comparison.csv"}')
     print(f'- {TABLES_DIR / "ml_best_params.csv"}')
     print(f'- {TABLES_DIR / "ml_feature_importance.csv"}')
+    print(f'- {TABLES_DIR / "ml_cross_validation.csv"}')
     print(f'- {FIGURES_DIR / "median_household_income_by_commune.png"}')
     print(f'- {FIGURES_DIR / "average_income_by_education.png"}')
+    print(f'- {FIGURES_DIR / "mincer_key_effects.png"}')
     print(f'- {FIGURES_DIR / "predicted_labor_income_by_schooling_gender.png"}')
     print(f'- {FIGURES_DIR / "gender_income_gap_decomposition.png"}')
+    print(f'- {FIGURES_DIR / "oaxaca_bootstrap_ci.png"}')
     print(f'- {FIGURES_DIR / "ml_model_performance.png"}')
     print(f'- {FIGURES_DIR / "ml_feature_importance.png"}')
     print(f'- {FIGURES_DIR / "ml_actual_vs_predicted.png"}')
+    print(f'- {FIGURES_DIR / "ml_cross_validation_r2.png"}')
 
 
 def main() -> None:
@@ -801,15 +1135,21 @@ def main() -> None:
     marital_status_summary = build_marital_status_summary(dataframe)
 
     labor_frame = build_individual_labor_frame(dataframe)
-    mincer_model = fit_mincer_model(labor_frame)
-    mincer_summary = build_mincer_summary(mincer_model)
+    statistical_tests = build_statistical_tests(dataframe, households, labor_frame)
+    _, mincer_base_model, mincer_robust_model = fit_mincer_models(labor_frame)
+    mincer_summary = build_mincer_summary(mincer_robust_model)
+    mincer_diagnostics = build_mincer_diagnostics(mincer_base_model)
+    mincer_vif = build_mincer_vif(labor_frame)
     gender_income_summary = build_gender_income_summary(labor_frame)
     oaxaca_two_fold_result, oaxaca_three_fold_result = run_oaxaca_decomposition(labor_frame)
     oaxaca_two_fold_summary, oaxaca_three_fold_summary = build_oaxaca_summary(
         oaxaca_two_fold_result,
         oaxaca_three_fold_result,
     )
-    ml_model_comparison, ml_best_params, ml_feature_importance, ml_prediction_frame = run_ml_models(labor_frame)
+    _, oaxaca_bootstrap_summary = bootstrap_oaxaca(labor_frame, args.oaxaca_bootstrap_iterations)
+    ml_model_comparison, ml_best_params, ml_feature_importance, ml_prediction_frame, ml_cross_validation = run_ml_models(
+        labor_frame
+    )
 
     export_tables(
         households,
@@ -818,27 +1158,36 @@ def main() -> None:
         marital_status_summary,
         gender_income_summary,
         mincer_summary,
+        mincer_diagnostics,
+        mincer_vif,
+        statistical_tests,
         oaxaca_two_fold_summary,
         oaxaca_three_fold_summary,
+        oaxaca_bootstrap_summary,
         ml_model_comparison,
         ml_best_params,
         ml_feature_importance,
+        ml_cross_validation,
     )
     export_figures(
         commune_summary,
         education_summary,
         labor_frame,
-        mincer_model,
+        mincer_summary,
         oaxaca_two_fold_summary,
+        oaxaca_bootstrap_summary,
         ml_model_comparison,
         ml_feature_importance,
         ml_prediction_frame,
+        ml_cross_validation,
     )
     print_summary(
         households,
         commune_summary,
+        statistical_tests,
         labor_frame,
         mincer_summary,
+        oaxaca_bootstrap_summary,
         oaxaca_two_fold_summary,
         ml_model_comparison,
     )

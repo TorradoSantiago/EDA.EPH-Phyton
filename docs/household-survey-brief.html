@@ -1,11 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Buenos Aires Household Survey | Executive Brief</title>
   <style>
-    @page { size: A4; margin: 14mm 12mm 16mm; }
+    @page { size: A4; margin: 13mm 12mm 15mm; }
     :root {
       --ink: #13243b;
       --muted: #586575;
@@ -15,28 +15,30 @@
       --panel: #f8fbff;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; font-size: 15px; color: var(--ink); background: white; line-height: 1.5; }
-    main { max-width: 960px; margin: 0 auto; }
+    body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; font-size: 14px; color: var(--ink); background: white; line-height: 1.55; }
+    main { max-width: 980px; margin: 0 auto; }
     h1, h2, h3 { margin: 0 0 12px; line-height: 1.15; break-after: avoid-page; }
-    h1 { font-size: 33px; }
+    h1 { font-size: 31px; }
     h2 { font-size: 22px; }
-    p { margin: 0 0 14px; color: var(--muted); }
-    ul { margin: 0 0 16px 20px; color: var(--muted); }
-    li { margin-bottom: 8px; }
-    .hero { padding: 28px 32px; border: 1px solid var(--line); border-radius: 24px; background: linear-gradient(135deg, #f9fbff 0%, #eff5ff 100%); }
+    h3 { font-size: 16px; }
+    p { margin: 0 0 12px; color: var(--muted); }
+    ul, ol { margin: 0 0 14px 22px; color: var(--muted); }
+    li { margin-bottom: 7px; }
+    .hero { padding: 26px 30px; border: 1px solid var(--line); border-radius: 24px; background: linear-gradient(135deg, #f9fbff 0%, #eff5ff 100%); }
     .eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--accent); font-weight: 700; margin-bottom: 10px; }
-    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
-    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; break-inside: avoid-page; }
-    .metric { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
-    .label { font-size: 13px; color: var(--muted); }
-    .section { margin-top: 26px; padding-top: 24px; border-top: 1px solid var(--line); }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; break-inside: avoid-page; }
+    .metric { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+    .label { font-size: 12px; color: var(--muted); }
+    .section { margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line); }
     .page-start { break-before: page; page-break-before: always; }
-    .callout { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 16px 18px; border-radius: 14px; margin: 18px 0; color: var(--ink); }
-    .figure { margin: 22px 0; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: white; break-inside: avoid-page; }
-    .figure img { width: 100%; display: block; object-fit: contain; max-height: 205mm; }
-    .figure figcaption { padding: 12px 16px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); }
-    table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
-    th, td { border: 1px solid var(--line); padding: 10px 12px; text-align: left; vertical-align: top; }
+    .callout { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 15px 17px; border-radius: 14px; margin: 16px 0; color: var(--ink); }
+    .two-col { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 18px; align-items: start; }
+    .figure { margin: 18px 0; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: white; break-inside: avoid-page; }
+    .figure img { width: 100%; display: block; object-fit: contain; max-height: 210mm; }
+    .figure figcaption { padding: 10px 14px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 12.5px; }
+    th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
     th { background: var(--accent-soft); }
   </style>
 </head>
@@ -45,90 +47,269 @@
     <section class="hero">
       <div class="eyebrow">Urban Analytics and Labor Economics Case</div>
       <h1>Buenos Aires Household Survey</h1>
-      <p>This project turns the 2019 Annual Household Survey into a compact case for analytics, consulting, and policy roles. The updated version keeps the strongest part of the original delivery: a clear theoretical framing about why this survey matters for understanding inequality, labor conditions, and household wellbeing in Buenos Aires.</p>
+      <p>This project turns the 2019 Annual Household Survey into a full portfolio case on inequality in Buenos Aires. The updated version keeps the best part of the original delivery, which was its theoretical framing, but now adds formal tests, regression diagnostics, bootstrap inference, and cross-validated machine-learning benchmarks.</p>
       <div class="grid">
         <article class="card">
           <div class="metric">5,848</div>
           <div class="label">Households aggregated from the survey microdata</div>
         </article>
         <article class="card">
+          <div class="metric">6,656</div>
+          <div class="label">Workers in the earnings-equation sample</div>
+        </article>
+        <article class="card">
           <div class="metric">13.25%</div>
           <div class="label">Estimated labor-income premium per additional year of schooling</div>
         </article>
         <article class="card">
-          <div class="metric">29.35%</div>
-          <div class="label">Observed male-female labor-income gap in the working sample</div>
+          <div class="metric">40.18%</div>
+          <div class="label">Bootstrap mean of the unexplained gender-gap component</div>
         </article>
       </div>
     </section>
 
     <section class="section">
-      <h2>Why this dataset matters</h2>
-      <p>The Annual Household Survey is valuable because it captures demographic, educational, labor, and health conditions across all communes of Buenos Aires. In the original notebook, that context was central: the dataset was presented as a policy tool, not just as material for plotting charts. That framing is preserved here because it makes the analysis more credible.</p>
+      <h2>Research motivation</h2>
+      <p>The Annual Household Survey matters because it does more than measure income. It captures who lives in each commune, how households are structured, how education is distributed, and which labor-market conditions accompany those characteristics. That makes it appropriate for a compact theory of urban inequality rather than a simple dashboard.</p>
+      <p>The conceptual base of the project is that inequality in Buenos Aires should not be treated as a one-variable problem. The city combines territorial segmentation, differences in schooling, differences in occupational position, and household dilution of resources. A strong analysis therefore has to move across several levels of aggregation instead of stopping at a single income ranking.</p>
       <div class="callout">
-        Executive takeaway: the project is not just about showing inequality. It is about using a citywide survey to understand which social and labor-market variables are most strongly associated with income differences.
+        Executive takeaway: the project is not only describing who earns more. It is testing whether geography, human capital, household composition, and gender remain analytically meaningful once the data are formalized.
       </div>
-      <ul>
-        <li>Does geography influence household income?</li>
-        <li>How does household size affect total and per-capita income?</li>
-        <li>What is the relationship between schooling and labor income?</li>
-        <li>How much of the gender income gap can be explained by observed characteristics?</li>
-      </ul>
+      <ol>
+        <li>Do communes display meaningfully different household-income distributions?</li>
+        <li>Does household size change how total income translates into effective welfare?</li>
+        <li>How strong is the schooling premium in the employed sample?</li>
+        <li>How much of the gender gap remains after conditioning on measured characteristics?</li>
+        <li>Do flexible ML models materially outperform an interpretable earnings equation?</li>
+      </ol>
     </section>
 
     <section class="section page-start">
-      <h2>What the descriptive and econometric evidence says</h2>
-      <p>The current version keeps the original hypothesis-driven structure but improves the measurement. It moves from descriptive comparisons into a Mincer earnings equation and an Oaxaca-Blinder decomposition.</p>
+      <h2>Data architecture and descriptive base</h2>
+      <div class="two-col">
+        <div>
+          <p>The household layer aggregates the raw survey into `5,848` distinct households across `15` communes. That is useful because the main inequality problem in cities is often experienced at the household level, not only by isolated individuals. The individual labor-income layer then focuses on employed adults aged `18` to `65` with positive labor income, producing a working sample of `6,656` observations for econometric analysis.</p>
+          <p>The descriptive story is already strong before modeling. Commune `14` reaches a median household income of `70,000`, while Commune `8` sits around half that level. At the same time, larger households are associated with lower per-capita income, which means a gross-income comparison alone would understate inequality in actual living standards.</p>
+        </div>
+        <div class="card">
+          <h3>Baseline signals</h3>
+          <ul>
+            <li>Top commune by median household income: Commune `14`.</li>
+            <li>Strong negative relationship between household size and per-capita resources.</li>
+            <li>Clear upward gradient in individual income across education groups.</li>
+            <li>Visible raw labor-income gap between men and women before controls.</li>
+          </ul>
+        </div>
+      </div>
       <figure class="figure">
         <img src="../outputs/figures/median_household_income_by_commune.png" alt="Median household income by commune">
-        <figcaption>Territorial inequality is visible immediately. Commune 14 reaches 70,000 in median household income, while Commune 8 sits at 35,000.</figcaption>
+        <figcaption>Territorial inequality is not subtle. Commune-level medians differ sharply, which justifies keeping geography inside the later econometric and decomposition layers.</figcaption>
       </figure>
       <figure class="figure">
-        <img src="../outputs/figures/gender_income_gap_decomposition.png" alt="Gender labor-income gap decomposition">
-        <figcaption>The unexplained component of the gender gap remains large, which means standard observed characteristics do not fully account for the income difference.</figcaption>
+        <img src="../outputs/figures/average_income_by_education.png" alt="Average individual income by education level">
+        <figcaption>Education groups show large income differences before any regression is estimated. This is why a Mincer-style interpretation is theoretically justified rather than imposed mechanically.</figcaption>
       </figure>
+    </section>
+
+    <section class="section page-start">
+      <h2>Formal testing of the descriptive story</h2>
+      <p>The current version strengthens the original EDA by translating descriptive patterns into explicit hypothesis tests. This is important for portfolio quality: it shows that the narrative is not only visual, but statistically disciplined.</p>
       <table>
         <thead>
           <tr>
-            <th>Key result</th>
+            <th>Question</th>
+            <th>Test</th>
+            <th>Result</th>
             <th>Interpretation</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>13.25% schooling premium</td>
-            <td>Each additional year of schooling is associated with higher labor income in the employed sample.</td>
+            <td>Do household-income distributions differ across communes?</td>
+            <td>Kruskal-Wallis</td>
+            <td>Statistic `380.86`, `p = 1.36e-72`</td>
+            <td>Income differences across communes are far too large to treat as sampling noise.</td>
           </tr>
           <tr>
-            <td>29.35% gender gap</td>
-            <td>Men earn more on average in the working sample.</td>
+            <td>Is household size associated with per-capita income?</td>
+            <td>Spearman correlation</td>
+            <td>`rho = -0.388`, `p = 1.10e-209`</td>
+            <td>Larger households systematically experience lower per-capita resources.</td>
           </tr>
           <tr>
-            <td>40.25% unexplained component</td>
-            <td>The gap is not mainly explained by women having weaker measured characteristics.</td>
+            <td>Do education groups differ in total income?</td>
+            <td>Kruskal-Wallis</td>
+            <td>Statistic `2360.94`, `p < 0.001`</td>
+            <td>The income gradient by schooling appears long before the earnings equation is estimated.</td>
+          </tr>
+          <tr>
+            <td>Do male and female workers differ in labor-income distributions?</td>
+            <td>Mann-Whitney U</td>
+            <td>Statistic `6.36e6`, `p = 1.26e-25`</td>
+            <td>The raw gender gap is already visible before conditioning on occupation, commune, and schooling.</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout">
+        These tests matter because they convert the descriptive layer into a set of defendable empirical claims. That makes the later econometric steps feel motivated rather than decorative.
+      </div>
+    </section>
+
+    <section class="section page-start">
+      <h2>Mincer equation and diagnostic discipline</h2>
+      <p>The labor-income model uses a semilog Mincer specification with schooling, centered potential experience, occupation, commune, and gender. Centering experience is not just cosmetic. In the earlier version, the quadratic age-experience structure produced inflated collinearity; in the current version the relevant VIF values fall to roughly `1.01` to `1.15`, which makes the polynomial term stable and interpretable.</p>
+      <figure class="figure">
+        <img src="../outputs/figures/mincer_key_effects.png" alt="Key effects from the Mincer equation">
+        <figcaption>The strongest effect remains the schooling coefficient, followed by a sizable male premium. The experience pattern is concave, which is consistent with standard earnings-profile theory.</figcaption>
+      </figure>
+      <figure class="figure">
+        <img src="../outputs/figures/predicted_labor_income_by_schooling_gender.png" alt="Predicted labor income by schooling and gender">
+        <figcaption>A partial-effect visualization makes the labor-income gradient easier to explain to non-technical readers: more schooling shifts expected earnings upward for both groups, but the male premium lifts the entire curve.</figcaption>
+      </figure>
+      <table>
+        <thead>
+          <tr>
+            <th>Coefficient</th>
+            <th>Value</th>
+            <th>Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Schooling premium</td>
+            <td>`13.25%` per year, `p &lt; 0.001`</td>
+            <td>Each additional year of schooling is associated with materially higher labor income.</td>
+          </tr>
+          <tr>
+            <td>Male premium</td>
+            <td>`40.26%` approximate effect, `p &lt; 0.001`</td>
+            <td>The coefficient remains large even after conditioning on commune and occupation.</td>
+          </tr>
+          <tr>
+            <td>Adjusted R-squared</td>
+            <td>`0.378`</td>
+            <td>The model captures a meaningful share of variation for noisy survey earnings data.</td>
+          </tr>
+          <tr>
+            <td>RESET test</td>
+            <td>`p = 0.914`</td>
+            <td>There is no strong evidence of a missing broad nonlinearity once centered experience is included.</td>
+          </tr>
+          <tr>
+            <td>Breusch-Pagan test</td>
+            <td>`p &lt; 0.001`</td>
+            <td>Residual variance is not constant, so robust `HC3` standard errors are the right reporting choice.</td>
           </tr>
         </tbody>
       </table>
     </section>
 
     <section class="section page-start">
-      <h2>What the ML layer adds</h2>
-      <p>The original presentation was strong because it was hypothesis-first. The ML layer is therefore treated here as a robustness test, not as the main attraction. I benchmarked four out-of-sample models on log labor income to see whether more flexibility materially improved fit.</p>
+      <h2>Gender-gap decomposition</h2>
+      <p>The Oaxaca-Blinder layer is where the project becomes more than a standard earnings regression. The question is no longer whether a gender gap exists, but whether observed characteristics explain most of it. In this sample, they do not.</p>
       <figure class="figure">
-        <img src="../outputs/figures/ml_model_performance.png" alt="ML model performance comparison">
-        <figcaption>The best model is Gradient Boosting with R-squared of 0.342, only slightly above the linear benchmark. That means most of the useful structure is already captured by the interpretable specification.</figcaption>
+        <img src="../outputs/figures/gender_income_gap_decomposition.png" alt="Gender labor-income gap decomposition">
+        <figcaption>The decomposition shows a total labor-income gap of `29.36%`, with the unexplained component dominating the explained component.</figcaption>
       </figure>
       <figure class="figure">
-        <img src="../outputs/figures/ml_feature_importance.png" alt="ML feature importance">
-        <figcaption>Schooling remains the strongest feature group in the best ML model, followed by age, occupation, gender, and commune. The machine-learning result reinforces the economic story instead of replacing it.</figcaption>
+        <img src="../outputs/figures/oaxaca_bootstrap_ci.png" alt="Bootstrap confidence intervals for Oaxaca decomposition">
+        <figcaption>Bootstrap inference makes the decomposition much more persuasive. The unexplained component remains well above zero across the 95% interval, which strengthens the substantive interpretation.</figcaption>
+      </figure>
+      <table>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Mean gap</th>
+            <th>95% interval</th>
+            <th>Interpretation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Explained effect</td>
+            <td>`-7.72%`</td>
+            <td>`[-10.02%, -5.22%]`</td>
+            <td>Observed characteristics do not explain the direction of the overall gap; if anything, they offset part of it.</td>
+          </tr>
+          <tr>
+            <td>Unexplained effect</td>
+            <td>`40.18%`</td>
+            <td>`[35.16%, 45.08%]`</td>
+            <td>A large residual component remains after controls, which is the key substantive result.</td>
+          </tr>
+          <tr>
+            <td>Total gap</td>
+            <td>`29.36%`</td>
+            <td>`[23.75%, 34.78%]`</td>
+            <td>The full labor-income gap is economically large and statistically stable.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section page-start">
+      <h2>What the ML layer adds and what it does not add</h2>
+      <p>The machine-learning benchmark is deliberately disciplined. It is not there to replace the economic story. It is there to test whether the interpretable structure misses a large amount of predictive signal. The answer is: not really.</p>
+      <figure class="figure">
+        <img src="../outputs/figures/ml_model_performance.png" alt="Holdout ML performance comparison">
+        <figcaption>Gradient Boosting is the best holdout model with `R^2 = 0.342`, but the linear benchmark remains close at `0.330`.</figcaption>
+      </figure>
+      <figure class="figure">
+        <img src="../outputs/figures/ml_cross_validation_r2.png" alt="Cross-validated ML comparison">
+        <figcaption>Five-fold cross-validation tells the same story as the holdout split. The best cross-validated model is still Gradient Boosting, but only slightly above the linear benchmark.</figcaption>
+      </figure>
+      <figure class="figure">
+        <img src="../outputs/figures/ml_feature_importance.png" alt="Feature importance in best ML model">
+        <figcaption>Schooling remains the dominant feature group in the best model, followed by age, occupation, gender, and commune. The ML result reinforces the economic interpretation rather than overturning it.</figcaption>
+      </figure>
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Holdout R-squared</th>
+            <th>Cross-validated R-squared</th>
+            <th>Takeaway</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Gradient Boosting</td>
+            <td>`0.342`</td>
+            <td>`0.346`</td>
+            <td>Best performer, but only marginally above the linear baseline.</td>
+          </tr>
+          <tr>
+            <td>Linear benchmark</td>
+            <td>`0.330`</td>
+            <td>`0.339`</td>
+            <td>Captures most of the usable signal with a fully interpretable structure.</td>
+          </tr>
+          <tr>
+            <td>Elastic Net</td>
+            <td>`0.327`</td>
+            <td>`0.338`</td>
+            <td>Regularization does not materially change the story.</td>
+          </tr>
+          <tr>
+            <td>Random Forest</td>
+            <td>`0.309`</td>
+            <td>`0.313`</td>
+            <td>Greater flexibility does not guarantee better out-of-sample performance.</td>
+          </tr>
+        </tbody>
+      </table>
+      <figure class="figure">
+        <img src="../outputs/figures/ml_actual_vs_predicted.png" alt="Actual versus predicted labor income">
+        <figcaption>The best model predicts reasonably well in the middle of the income distribution but, as expected, still struggles at the highest observed incomes. That is normal in earnings data and another reason not to oversell black-box methods.</figcaption>
       </figure>
     </section>
 
     <section class="section">
-      <h2>Why this matters for hiring</h2>
-      <p>This repository works well in interviews because it shows range without becoming noisy. It starts with a real public dataset, moves into an interpretable labor-economics model, and then tests whether more flexible ML materially changes the result. Just as important, it preserves the original academic rationale of the first delivery.</p>
+      <h2>Conclusion and theoretical proposal</h2>
+      <p>The project now supports a stronger theoretical statement than the original EDA: inequality in Buenos Aires is generated through interacting urban mechanisms rather than a single income hierarchy. Geography matters, education matters, household dilution matters, and a large gender gap remains even after observable controls. That layered conclusion is more persuasive than any single descriptive chart or any single predictive score.</p>
+      <p>For hiring purposes, the repository works well because it demonstrates judgment. It shows when to test, when to model, when to decompose, and when to stop adding complexity because the interpretable baseline is already doing most of the work. That is exactly the kind of discipline that consulting, policy, and analytics teams want to see in a portfolio project.</p>
       <div class="callout">
-        Hiring takeaway: this is the kind of project that signals good judgment. It combines theory, policy relevance, econometrics, and ML benchmarking without confusing prediction with explanation.
+        Hiring takeaway: this is no longer just a course EDA. It is a compact research case with theory, diagnostics, inferential discipline, and a restrained use of machine learning.
       </div>
     </section>
   </main>
