@@ -1,17 +1,45 @@
+# Python
 .ipynb_checkpoints/
 __pycache__/
 *.pyc
+*.pyo
 
 # LaTeX build artifacts
 docs/*.aux
 docs/*.log
 docs/*.out
 docs/brief.tex
+docs/brief.pdf
 
-# Removed from repo
+# Legacy files (kept on disk, excluded from repo)
 BRIEF.md
+archive/
+scripts/
 docs/executive-summary.md
 docs/household-survey-brief.html
-archive/household_survey_analysis_legacy_es.ipynb
-archive/original_delivery/
-scripts/
+
+# Old figure naming conventions (replaced by fig01_*.png … fig14_*.png)
+outputs/figures/0[0-9]_*.png
+outputs/figures/average_income_by_education.png
+outputs/figures/mincer_key_effects.png
+outputs/figures/ml_feature_importance.png
+outputs/figures/ml_model_performance.png
+outputs/figures/predicted_labor_income_by_schooling_gender.png
+
+# Old tables (replaced by ols_coefficients.csv, ml_model_comparison.csv, etc.)
+outputs/tables/commune_income_summary.csv
+outputs/tables/education_income_summary.csv
+outputs/tables/gender_gap_decomposition.csv
+outputs/tables/gender_income_summary.csv
+outputs/tables/household_dataset.csv
+outputs/tables/household_dataset_clean.csv
+outputs/tables/marital_status_income_summary.csv
+outputs/tables/mincer_coefficients.csv
+outputs/tables/mincer_diagnostics.csv
+outputs/tables/mincer_vif.csv
+outputs/tables/ml_best_params.csv
+outputs/tables/ml_cross_validation.csv
+outputs/tables/oaxaca_bootstrap_summary.csv
+outputs/tables/oaxaca_three_fold_summary.csv
+outputs/tables/oaxaca_two_fold_summary.csv
+outputs/tables/statistical_tests.csv
