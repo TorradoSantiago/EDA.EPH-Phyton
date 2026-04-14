@@ -1,5 +1,5 @@
-term,label,coefficient,std_error,p_value,approx_pct_effect
-anos_escolaridad,Additional year of schooling,0.12441269058899154,0.0030331469125636753,0.0,13.248313970779302
-experience_centered,Potential experience (centered),0.01512075850225439,0.000772157075571964,2.1809271590130163e-85,1.5235655550820626
-I(experience_centered ** 2),Potential experience squared,-0.0004955796411284573,6.135599794592946e-05,6.631531896600833e-16,-0.04954568618212862
-C(sexo)[T.Varon],Male income premium,0.33823383760292336,0.017589609075424874,2.1091881333084267e-82,40.24684149171254
+variable,coef,std_error,p_value,pct_effect,sig
+Each additional year of schooling,0.1244,0.003,0.0,13.25,***
+Labor market experience,0.0151,0.0008,0.0,1.52,***
+Diminishing returns to experience,-0.0005,0.0001,0.0,-0.05,***
+Being female (vs. male),-0.3382,0.0176,0.0,-28.7,***

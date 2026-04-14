@@ -1,5 +1,17 @@
 .ipynb_checkpoints/
-outputs/figures/*.png
-outputs/tables/*.csv
-!outputs/figures/.gitkeep
-!outputs/tables/.gitkeep
+__pycache__/
+*.pyc
+
+# LaTeX build artifacts
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/brief.tex
+
+# Removed from repo
+BRIEF.md
+docs/executive-summary.md
+docs/household-survey-brief.html
+archive/household_survey_analysis_legacy_es.ipynb
+archive/original_delivery/
+scripts/

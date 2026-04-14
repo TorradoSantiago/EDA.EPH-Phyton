@@ -1,10 +1,13 @@
-feature_group,importance
-anos_escolaridad,0.4713608575673525
-edad,0.13440793023653283
-cat_ocupacional,0.11731284203127082
-sexo,0.07767296621755734
-comuna,0.0656741233364997
-children_count,0.0514738676766374
-potential_experience,0.02949258130340426
-situacion_conyugal,0.026580996778217188
-nivel_max_educativo,0.026023834852527974
+variable,importance,label
+schooling_years,0.5610403585757754,Years of schooling
+exp_c,0.125086801182538,Experience (centered)
+occ_Trabajador por cuenta propia,0.086069375302444,Occupation: Trabajador por cue
+female,0.08343462143135653,Gender (female)
+exp_c2,0.040983501376761745,Experience squared
+occ_Patron/empleador,0.018310030171142223,Occupation: Patron/empleador
+com_8,0.013440742536096228,Commune 8
+com_14,0.008532042345944785,Commune 14
+com_6,0.007180330021703505,Commune 6
+com_4,0.007007922945889376,Commune 4
+com_7,0.006980797570532931,Commune 7
+com_3,0.006525708627459625,Commune 3

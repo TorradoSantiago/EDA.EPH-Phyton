@@ -1,114 +1,123 @@
-# EDA.EPH-Phyton
+# Income Inequality in Buenos Aires
+### Annual Household Survey 2019 — EDA, OLS Regression, and ML Benchmark
 
-Portfolio-grade socioeconomic analysis built on the 2019 Buenos Aires Annual Household Survey. The repository now combines descriptive diagnostics, formal econometric tests, Oaxaca-Blinder decomposition, and a disciplined ML benchmark, while preserving the original Spanish delivery so the stronger theoretical framing is never lost.
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
-Start with:
-- `household_survey_analysis.ipynb`
-- `BRIEF.md`
-- `docs/executive-summary.md`
-- `docs/household-survey-brief.pdf`
-- `archive/original_delivery/original_theoretical_notes_es.md`
+---
 
-## Recovered original delivery
+## What this project does
 
-The original project submission is preserved in `archive/original_delivery/`:
+This repository turns public microdata from the 2019 Buenos Aires Annual Household Survey into an applied case on labor and urban economics. The central question is not simply *who earns more* — it is **why income differences exist** across geography, education levels, household types, and gender, and whether a well-specified statistical model can capture those differences.
 
-- `Datasets+Torrado.ipynb`: original notebook restored with its original filename from the first upload commit.
-- `original_theoretical_notes_es.md`: extracted Markdown narrative from the original Spanish notebook.
-- `recovery_manifest.md`: provenance note explaining what was recovered and from which commit.
+The analysis moves through four layers:
 
-This matters because the public-facing portfolio version can now coexist with the original academic delivery instead of replacing it.
+1. **Descriptive EDA** — documenting income gradients with 14 charts
+2. **Formal hypothesis tests** — confirming each pattern is statistically real
+3. **OLS earnings regression** — estimating the independent contribution of schooling, experience, and gender with full Gauss-Markov diagnostics
+4. **ML benchmark** — testing whether non-linear models add meaningful predictive power over OLS
 
-## Research question
+---
 
-The project studies how household income, educational attainment, labor-market position, and gender interact inside Buenos Aires microdata. It is not only an inequality dashboard. The analytical purpose is to test whether the main gradients suggested by descriptive evidence survive formal modeling and whether more flexible machine-learning models materially improve what we learn from the survey.
+## Repository structure
 
-## Why the dataset is theoretically useful
+```
+EDA.EPH-Phyton/
+├── household_survey_analysis.ipynb   ← Main notebook (start here)
+├── analysis_final.py                 ← Standalone pipeline to regenerate all figures
+├── annual_household_survey_2019.csv  ← Raw EAH 2019 dataset
+├── outputs/
+│   ├── figures/                      ← 14 publication-quality charts
+│   └── tables/                       ← CSV exports of all model results
+├── docs/
+│   └── household-survey-brief.pdf    ← Academic brief with embedded figures (LaTeX)
+└── archive/
+    └── original_delivery/            ← Original Spanish academic submission
+```
 
-The Annual Household Survey is valuable because it combines territorial information, labor outcomes, educational attainment, household composition, and demographic structure in a single urban snapshot. In the original delivery, that context was one of the strongest parts of the project, and it remains central here.
+---
 
-The survey is theoretically useful for three reasons:
+## Research questions and hypotheses
 
-1. It lets us connect territorial inequality with labor-market inequality.
-2. It lets us move from household outcomes to individual earnings equations.
-3. It allows a gender-gap analysis that separates what is explained by observed characteristics from what remains unexplained.
+| # | Question | Null hypothesis (H0) | Test | Result |
+|---|---|---|---|---|
+| H1 | Does geography determine income? | All communes have identical distributions | Kruskal-Wallis | p = 1.36e-72 — **H0 rejected** |
+| H2 | Do larger households have lower per-capita income? | Spearman rho = 0 | Spearman | rho = -0.388 — **H0 rejected** |
+| H3 | Does education stratify income? | Education groups are identically distributed | Kruskal-Wallis | p << 0.001 — **H0 rejected** |
+| H4 | Does a raw gender wage gap exist? | Male/female distributions are identical | Mann-Whitney U | p << 0.001 — **H0 rejected** |
 
-## Analytical structure
+Non-parametric tests are used because income data is right-skewed and does not satisfy the normality assumption required by ANOVA or Student's t-test.
 
-The current version has four stacked layers.
+---
 
-1. Descriptive baseline
-   - Household aggregation by commune.
-   - Income gradients by education and marital status.
-   - Household-size relationships with per-capita resources.
+## Earnings model
 
-2. Statistical testing
-   - Kruskal-Wallis across communes: `p = 1.36e-72`.
-   - Spearman correlation between household members and per-capita income: `rho = -0.388`.
-   - Kruskal-Wallis across education groups: overwhelmingly significant.
-   - Mann-Whitney gender contrast in labor income: strongly significant.
+The core model is a log-linear OLS regression on 6,656 employed adults:
 
-3. Econometric layer
-   - Semilog Mincer equation with schooling, centered experience, occupation, commune, and gender.
-   - Oaxaca-Blinder decomposition of the male-female labor-income gap.
-   - Bootstrap confidence intervals for the two-fold decomposition.
+```
+ln(labor_income) = b0 + b1*schooling + b2*experience_c + b3*experience_c^2 + b4*female + controls + error
+```
 
-4. Machine-learning robustness layer
-   - Linear benchmark.
-   - Elastic Net.
-   - Random Forest.
-   - Gradient Boosting.
-   - Five-fold cross-validation to compare out-of-sample stability.
+Experience is **centered** before squaring to reduce multicollinearity between the linear and quadratic terms. This brings VIF values to the 1.01–1.15 range with no material change to the estimates.
 
-## Core sample and results
+Full Gauss-Markov diagnostics:
 
-- Descriptive sample: `5,848` households across `15` communes.
-- Econometric sample: `6,656` employed adults with positive labor income.
-- Main earnings result: each additional year of schooling is associated with a `13.25%` labor-income premium.
-- Adjusted `R^2` of the Mincer equation: `0.378`.
-- Raw gender labor-income gap: `29.35%`.
-- Bootstrap unexplained component of the gender gap: `40.18%` with a 95% interval that stays well above zero.
+| Condition | Test | Result | Action |
+|---|---|---|---|
+| Homoskedasticity | Breusch-Pagan | Rejected | HC3 robust standard errors |
+| No multicollinearity | VIF | VIF 1.01–1.15 after centering | Centered experience polynomial |
+| Normal residuals | Jarque-Bera | Rejected | Expected; large-n inference valid |
+| Correct functional form | RESET (Ramsey) | Not rejected | Specification is adequate |
 
-## Diagnostic interpretation
+**Main result:** each additional year of schooling is associated with a **+13.25% increase in monthly labor income**, controlling for experience, occupation, location, and gender. Adjusted R2 = 0.378.
 
-The project is stronger now because it does not stop at coefficient reporting.
+---
 
-- Heteroskedasticity is present, so the main coefficient table is reported with `HC3` robust errors.
-- The RESET test does not indicate a major omitted-nonlinearity problem in the Mincer equation once centered experience is included.
-- Jarque-Bera rejects residual normality, which is common in earnings data and reinforces the decision to use robust inference.
-- Centering the experience polynomial reduces VIF values to roughly `1.01` to `1.15`, which means the polynomial term no longer creates artificial collinearity.
+## Gender wage gap decomposition
 
-## What the ML benchmark really says
+The 29.4% raw gender gap is split into two components:
 
-The ML layer is intentionally framed as a robustness exercise rather than a replacement for theory.
+- **Explained** (~-6.5%): attributable to differences in observable characteristics. Observable female characteristics are actually slightly favorable in this sample, so this component is negative.
+- **Unexplained** (~38%): the gap in returns to those characteristics — what women earn less even after equalizing education, experience, and occupation. The 95% bootstrap confidence interval stays firmly above zero.
 
-- Best holdout model: `Gradient Boosting`, `R^2 = 0.342`.
-- Best cross-validated model: `Gradient Boosting`, `CV R^2 = 0.346`.
-- Linear benchmark: `CV R^2 = 0.339`.
+---
 
-That gap is small. This is an analytically important result: in this dataset, most of the useful structure is already captured by an interpretable specification. That is a better story than claiming that a black-box model changes everything.
+## ML benchmark
 
-## Theoretical proposal
+Four models compared with 5-fold cross-validation:
 
-The repository now supports a clearer theoretical claim than the original EDA alone.
+| Model | CV R2 |
+|---|---|
+| Linear Regression (OLS baseline) | 0.362 |
+| Elastic Net | -0.007 |
+| Random Forest | 0.331 |
+| **Gradient Boosting** | **0.342** |
 
-Income inequality in Buenos Aires should be understood as a layered process:
+Gradient Boosting does not beat the OLS baseline in cross-validated performance. This is the analytically important result: the economic specification already captures the key structure of income determination. Non-linear complexity adds no meaningful predictive power.
 
-- geography structures access to opportunities and cost of living;
-- schooling shifts expected labor-market returns;
-- household composition changes how gross income translates into effective welfare;
-- gender differences remain even after conditioning on observed characteristics.
+---
 
-The project therefore moves from simple description to a compact theory of urban inequality: income differences are not only territorial and not only educational; they are reproduced through interacting labor-market, household, and gender mechanisms.
+## Main findings
 
-## Conclusion
+- **Schooling premium:** +13.25% per additional year (OLS, HC3 errors)
+- **Adjusted R2:** 0.378
+- **Raw gender gap:** 29.4% (median, labor income)
+- **Unexplained gender gap:** ~38% of the total, well above zero in bootstrap CI
+- **Geographic inequality:** commune 14 (Palermo) has ~2x the median income of commune 8 (Villa Soldati)
+- **Household dilution:** Spearman rho = -0.388 between household size and per-capita income
 
-This repository works as a portfolio case because it now shows judgment in addition to technique.
+---
 
-- It starts with a real public dataset.
-- It formalizes the strongest descriptive patterns with tests.
-- It estimates an interpretable earnings equation.
-- It uses decomposition analysis to say something substantive about inequality.
-- It adds ML only where ML helps clarify robustness.
+## Stack
 
-That mix is useful for consulting, economic analysis, labor-market research, public-policy analytics, and strategy roles where explanation matters as much as prediction.
+Python 3 · pandas · numpy · statsmodels · scikit-learn · matplotlib · scipy
+
+---
+
+## Original submission
+
+The original Spanish-language academic delivery is preserved in `archive/original_delivery/`. It coexists with this portfolio version without being replaced.
+
+---
+
+**Author:** Santiago Torrado — Applied economics, data analysis, public policy
